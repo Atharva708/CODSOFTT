@@ -1,0 +1,96 @@
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
+import spacy
+import re
+import string
+
+# Update these paths to match the location of your files on your local drive
+train_path = "/Users/atharva/Downloads/Genre Classification Dataset/train_data.txt"
+test_path = "/Users/atharva/Downloads/Genre Classification Dataset/test_data_solution.txt"
+description_path = "/Users/atharva/Downloads/Genre Classification Dataset/description.txt"
+
+# Load the description file
+description = pd.read_csv(description_path)
+print(description)
+
+# Load the training data
+train_data = pd.read_csv(train_path, sep=':::', names=['Title', 'Genre', 'Description'], engine='python')
+print(train_data.head())
+print(train_data.info())
+print(train_data.describe())
+print(train_data.isnull().sum())
+
+# Load the test data
+test_data = pd.read_csv(test_path, sep=':::', names=['Id', 'Title', 'Description'], engine='python')
+print(test_data.head())
+print(test_data.isnull().sum())
+
+# Plot the distribution of genres in the training data using a horizontal bar plot
+plt.figure(figsize=(14, 7))
+sns.countplot(data=train_data, y='Genre', order=train_data['Genre'].value_counts().index, palette='viridis')
+plt.xlabel('Count', fontsize=14, fontweight='bold')
+plt.ylabel('Genre', fontsize=14, fontweight='bold')
+plt.title('Distribution of Genres', fontsize=16, fontweight='bold')
+plt.show()
+
+# Plot the distribution of genres using a vertical bar plot with error bars
+plt.figure(figsize=(14, 7))
+genre_counts = train_data['Genre'].value_counts()
+sns.barplot(x=genre_counts.index, y=genre_counts, palette='viridis')
+plt.xlabel('Genre', fontsize=14, fontweight='bold')
+plt.ylabel('Count', fontsize=14, fontweight='bold')
+plt.title('Distribution of Genres with Confidence Intervals', fontsize=16, fontweight='bold')
+
+# Add error bars to show confidence intervals
+ax = plt.gca()
+for p in ax.patches:
+    ax.annotate(f'{p.get_height():.0f}', (p.get_x() + p.get_width() / 2., p.get_height()), ha='center', va='center', xytext=(0, 10), textcoords='offset points')
+
+plt.xticks(rotation=90, fontsize=14, fontweight='bold')
+plt.show()
+
+# Install spaCy and download the language model if not already installed
+# !pip install spacy
+# !python -m spacy download en_core_web_sm
+
+# Load spaCy English language model
+nlp = spacy.load("en_core_web_sm")
+
+# Define the preprocess_text function
+def preprocess_text(text):
+    # Convert to lowercase
+    text = text.lower()
+
+    # Remove URLs
+    text = re.sub(r'http\S+', '', text)
+
+    # Remove special characters and numbers
+    text = re.sub(r'[^a-zA-Z\s]', '', text)
+
+    # Remove extra whitespaces
+    text = re.sub('\s+', ' ', text).strip()
+
+    # Lemmatize using spaCy
+    doc = nlp(text)
+    lemmatized_words = [token.lemma_ for token in doc]
+
+    # Join the lemmatized words back into a string
+    preprocessed_text = ' '.join(lemmatized_words)
+
+    return preprocessed_text
+
+# Apply the preprocess_text function to the 'Description' column
+train_data['Text_cleaning'] = train_data['Description'].apply(preprocess_text)
+test_data['Text_cleaning'] = test_data['Description'].apply(preprocess_text)
+
+# Calculate the length of cleaned text
+train_data['length_Text_cleaning'] = train_data['Text_cleaning'].apply(len)
+
+# Visualize the distribution of text lengths
+plt.figure(figsize=(8, 7))
+sns.histplot(data=train_data, x='length_Text_cleaning', bins=20, kde=True, color='blue')
+plt.xlabel('Length', fontsize=14, fontweight='bold')
+plt.ylabel('Frequency', fontsize=14, fontweight='bold')
+plt.title('Distribution of Lengths', fontsize=16, fontweight='bold')
+plt.show()
